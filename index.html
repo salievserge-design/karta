@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Карта объекта — М-4 «Дон», км 398+631 и км 473+479</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<div id="workspace">
+
+  <!-- ================= ЛИСТ ================= -->
+  <div id="stage">
+    <div id="scaler">
+      <div class="sheet tinted" id="sheet">
+
+        <div id="mainmap"></div>
+        <svg id="leaders"></svg>
+
+        <div class="titlebar">
+          <div class="road" id="t-road"></div>
+          <div class="work" id="t-work"></div>
+        </div>
+
+        <div class="legend" id="legend"></div>
+
+        <div class="caption"><span id="t-caption"></span></div>
+        <div class="credits" id="credits"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ПАНЕЛЬ (не печатается) ================= -->
+  <aside id="panel">
+    <h1>Карта объекта</h1>
+    <p class="hint">
+      Лист оформлен по образцу «Рисунок 1»: обзорная карта, две круговые
+      выноски и условные обозначения. Настройте вид и сохраните через
+      «Печать → Сохранить как PDF».
+    </p>
+
+    <fieldset>
+      <legend>Лист</legend>
+      <label>Формат</label>
+      <select id="c-sheet">
+        <option value="a3">A3 альбомный (420×297 мм)</option>
+        <option value="a4">A4 альбомный (297×210 мм)</option>
+      </select>
+      <label>Масштаб предпросмотра</label>
+      <select id="c-zoomui">
+        <option value="fit">По ширине окна</option>
+        <option value="1">100 %</option>
+        <option value="0.75">75 %</option>
+        <option value="0.5">50 %</option>
+      </select>
+      <button id="b-print">Печать / Сохранить PDF</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Подложка</legend>
+      <label>Обзорная карта</label>
+      <select id="c-base-main"></select>
+      <label>Выноски</label>
+      <select id="c-base-inset"></select>
+      <div class="chk"><input type="checkbox" id="c-tint"><label for="c-tint" style="margin:0">Тонировать «под атлас» (как в СКДФ)</label></div>
+      <div class="chk"><input type="checkbox" id="c-routes"><label for="c-routes" style="margin:0">Подсветка трассы М-4 «Дон»</label></div>
+      <div class="chk"><input type="checkbox" id="c-regions"><label for="c-regions" style="margin:0">Границы Липецкой и Воронежской обл.</label></div>
+      <div class="chk"><input type="checkbox" id="c-cities"><label for="c-cities" style="margin:0">Подписи опорных городов</label></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Объект 1 · км 398+631</legend>
+      <div class="inline">
+        <div><label>Широта</label><input type="text" id="o1lat"></div>
+        <div><label>Долгота</label><input type="text" id="o1lon"></div>
+      </div>
+      <label>Масштаб выноски</label>
+      <input type="number" id="o1z" min="9" max="18" step="1">
+      <div class="ro" id="o1ro"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Объект 2 · км 473+479</legend>
+      <div class="inline">
+        <div><label>Широта</label><input type="text" id="o2lat"></div>
+        <div><label>Долгота</label><input type="text" id="o2lon"></div>
+      </div>
+      <label>Масштаб выноски</label>
+      <input type="number" id="o2z" min="9" max="18" step="1">
+      <div class="ro" id="o2ro"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Служебное</legend>
+      <button class="sec" id="b-fit">Вернуть обзор к объектам</button>
+      <button class="sec" id="b-reset">Сбросить координаты</button>
+      <div class="warn" id="accuracy-note"></div>
+      <label style="margin-top:12px">Проверить положение во внешних картах</label>
+      <div id="verify-links"></div>
+    </fieldset>
+  </aside>
+</div>
+
+<div id="toast"></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+/* =================================================================
+   Карта объекта М-4 «Дон» — оформление листа по образцу «Рисунок 1»
+   ================================================================= */
+
+:root {
+  --red: #cc0f24;
+  --red-dark: #8e1420;
+  --ink: #1d2733;
+  --ink-soft: #46586b;
+  --line: #9aa7b4;
+  --panel: rgba(247, 248, 245, 0.94);
+  --panel-line: #7d8894;
+  --sheet-w: 1587px;
+  --sheet-h: 1122px;
+  --font: 'Arial', 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #59626c;
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------------- рабочая область (экран) ---------------- */
+
+#workspace {
+  display: flex;
+  min-height: 100vh;
+  align-items: flex-start;
+}
+
+#stage {
+  flex: 1 1 auto;
+  padding: 26px 26px 60px;
+  overflow: auto;
+}
+
+#scaler { transform-origin: top left; }
+
+/* ---------------- лист ---------------- */
+
+.sheet {
+  position: relative;
+  width: var(--sheet-w);
+  height: var(--sheet-h);
+  background: #e9eef1;
+  overflow: hidden;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+}
+
+.sheet.a4 { --sheet-w: 1122px; --sheet-h: 793px; }
+
+#mainmap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #dfe6e9;
+}
+
+.tinted .leaflet-tile-pane {
+  filter: saturate(0.92) contrast(0.94) brightness(1.04) sepia(0.12);
+}
+
+/* рамка листа */
+.sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid #2b3742;
+  pointer-events: none;
+  z-index: 60;
+}
+
+/* ---------------- заголовок ---------------- */
+
+.titlebar {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 20px;
+  z-index: 40;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 3px;
+  padding: 9px 18px 11px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .18);
+}
+
+.titlebar .road {
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: .015em;
+  text-transform: none;
+}
+
+.titlebar .work {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+.a4 .titlebar .road { font-size: 12.5px; }
+.a4 .titlebar .work { font-size: 11.5px; }
+
+/* ---------------- подпись рисунка ---------------- */
+
+.caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  z-index: 40;
+  text-align: center;
+  pointer-events: none;
+}
+
+.caption span {
+  display: inline-block;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 3px;
+  padding: 5px 22px;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.a4 .caption span { font-size: 12px; }
+
+/* ---------------- выноски (круги) ---------------- */
+
+.inset {
+  position: absolute;
+  z-index: 30;
+  border-radius: 50%;
+  border: 5px solid var(--red-dark);
+  outline: 2px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .40), inset 0 0 0 2px rgba(255, 255, 255, .6);
+  overflow: hidden;
+  background: #dfe6e9;
+}
+
+.inset .lmap { position: absolute; inset: 0; }
+
+.inset-num {
+  position: absolute;
+  z-index: 620;
+  left: 10px;
+  top: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 30px;
+  text-align: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+  pointer-events: none;
+}
+
+.inset-cap {
+  position: absolute;
+  z-index: 31;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+}
+
+/* ---------------- легенда ---------------- */
+
+.legend {
+  position: absolute;
+  z-index: 40;
+  left: 26px;
+  bottom: 56px;
+  width: 470px;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 4px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .25);
+  padding: 9px 14px 11px;
+}
+
+.a4 .legend { width: 372px; bottom: 48px; left: 20px; }
+
+.legend h3 {
+  margin: 0 0 7px;
+  text-align: center;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: #2b3742;
+  border-bottom: 1px solid #b6c0c9;
+  padding-bottom: 5px;
+}
+
+.legend h4 {
+  margin: 7px 0 4px;
+  font-size: 10.5px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #5a6a79;
+}
+
+.legend .row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11.5px;
+  line-height: 1.32;
+  padding: 1.5px 0;
+}
+
+.a4 .legend .row { font-size: 10px; }
+.a4 .legend h3 { font-size: 11px; }
+.a4 .legend h4 { font-size: 9px; }
+
+.legend .sym {
+  flex: 0 0 46px;
+  height: 16px;
+  position: relative;
+}
+
+.legend .sym svg { position: absolute; inset: 0; }
+
+.legend .expl {
+  margin-top: 8px;
+  border-top: 1px solid #b6c0c9;
+  padding-top: 7px;
+}
+
+.legend table { width: 100%; border-collapse: collapse; font-size: 10.8px; }
+.legend table th,
+.legend table td {
+  border: 1px solid #b6c0c9;
+  padding: 2.5px 5px;
+  text-align: left;
+  vertical-align: top;
+}
+.legend table th { background: #e2e7e4; font-size: 9.6px; text-transform: uppercase; letter-spacing: .04em; }
+.legend table td.c { text-align: center; white-space: nowrap; }
+.a4 .legend table { font-size: 9.2px; }
+
+/* ---------------- маркеры на обзорной карте ---------------- */
+
+.obj-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .45);
+  color: #fff;
+  font: 700 14px/21px var(--font);
+  text-align: center;
+}
+
+.obj-badge.dragging { cursor: grabbing; }
+
+/* ---------------- слой выносных линий ---------------- */
+
+#leaders {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+/* ---------------- атрибуция ---------------- */
+
+.credits {
+  position: absolute;
+  z-index: 40;
+  right: 26px;
+  bottom: 18px;
+  font-size: 8.5px;
+  color: #35434f;
+  background: rgba(255, 255, 255, .75);
+  padding: 2px 7px;
+  border-radius: 2px;
+  max-width: 460px;
+  text-align: right;
+  line-height: 1.25;
+}
+
+.leaflet-control-attribution { display: none !important; }
+
+/* ---------------- панель управления (только экран) ---------------- */
+
+#panel {
+  flex: 0 0 316px;
+  position: sticky;
+  top: 0;
+  align-self: stretch;
+  max-height: 100vh;
+  overflow: auto;
+  background: #222a33;
+  color: #dbe3ea;
+  padding: 16px 16px 40px;
+  font-size: 13px;
+  box-shadow: -2px 0 14px rgba(0, 0, 0, .4);
+}
+
+#panel h1 { font-size: 15px; margin: 0 0 4px; color: #fff; }
+#panel .hint { font-size: 11.5px; color: #93a3b2; line-height: 1.45; margin: 0 0 14px; }
+#panel fieldset {
+  border: 1px solid #3b4652;
+  border-radius: 5px;
+  margin: 0 0 13px;
+  padding: 9px 11px 12px;
+}
+#panel legend { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #8fa2b4; padding: 0 5px; }
+#panel label { display: block; margin: 7px 0 3px; font-size: 11.5px; color: #a9b8c6; }
+#panel select,
+#panel input[type=text],
+#panel input[type=number] {
+  width: 100%;
+  padding: 5px 7px;
+  border-radius: 4px;
+  border: 1px solid #47535f;
+  background: #161c23;
+  color: #e7eef4;
+  font-size: 12px;
+  font-family: var(--font);
+}
+#panel .inline { display: flex; gap: 7px; }
+#panel .inline > * { flex: 1 1 0; }
+#panel .chk { display: flex; align-items: center; gap: 7px; margin: 7px 0; font-size: 12px; color: #cdd9e4; }
+#panel .chk input { margin: 0; }
+#panel button {
+  width: 100%;
+  margin-top: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #2f7be0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#panel button.sec { background: #3b4652; }
+#panel button:hover { filter: brightness(1.12); }
+#panel .ro {
+  font-family: 'Consolas', 'DejaVu Sans Mono', monospace;
+  font-size: 11px;
+  color: #8be08b;
+  background: #11161c;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  word-break: break-all;
+}
+#panel .warn {
+  border-left: 3px solid #e2b93b;
+  background: #2c2a1d;
+  color: #e6d9a8;
+  padding: 8px 10px;
+  border-radius: 0 4px 4px 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  margin: 10px 0 0;
+}
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  background: #11161c;
+  color: #e7eef4;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
+}
+#toast.on { opacity: 1; }
+
+/* ---------------- печать ---------------- */
+
+@page { size: A3 landscape; margin: 0; }
+body.a4page { }
+
+@media print {
+  html, body { background: #fff; }
+  #panel, #toast { display: none !important; }
+  #stage { padding: 0; overflow: visible; }
+  #scaler { transform: none !important; }
+  .sheet { box-shadow: none; page-break-inside: avoid; }
+}
+
+#panel a { color: #7fb7ff; text-decoration: none; }
+#panel a:hover { text-decoration: underline; }
