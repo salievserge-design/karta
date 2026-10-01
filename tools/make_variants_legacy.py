@@ -65,12 +65,33 @@ def find_coeffs(target, source):
     A = np.array(m, float)
     return np.linalg.solve(A[:, :8], A[:, 8])
 
-def warp_in(base, src, target_quad):
+def warp_in(base, src, target_quad, keep=None):
     sw, sh = src.size
     coeffs = find_coeffs(target_quad, [(0, 0), (sw, 0), (sw, sh), (0, sh)])
     w = src.convert('RGBA').transform(base.size, Image.PERSPECTIVE, coeffs, Image.BICUBIC)
     mask = Image.new('L', (sw, sh), 255).transform(base.size, Image.PERSPECTIVE, coeffs, Image.BICUBIC)
+    if keep is not None:
+        mask = Image.composite(mask, Image.new('L', base.size, 0), keep)
     base.paste(w, (0, 0), mask)
+
+def build_keep_mask(img_path, poly, chair_pts, dark_th=52):
+    """маска допуска накладки: полигон панели минус кресла (тёмные пиксели ниже polyline)"""
+    im = np.array(Image.open(img_path).convert('RGB')).astype(int)
+    H, W = im.shape[:2]
+    m = Image.new('L', (W, H), 0)
+    d = ImageDraw.Draw(m)
+    d.polygon([tuple(p) for p in poly], fill=255)
+    keep = np.array(m) > 0
+    dark = (im.max(axis=2) < dark_th)
+    # y > top(x) по piecewise-линии верха кресел
+    xs = np.array([p[0] for p in chair_pts], float)
+    ys = np.array([p[1] for p in chair_pts], float)
+    yy, xx = np.mgrid[0:H, 0:W]
+    top = np.interp(xx, xs, ys, left=1e9, right=1e9)
+    chairs = dark & (yy > top)
+    keep = keep & ~chairs
+    out = Image.fromarray((keep * 255).astype('uint8'))
+    return out.filter(ImageFilter.GaussianBlur(1.2))
 
 # ---------------- synth slat panel ----------------
 def sample_panel(img_path, strip_y0frac):
@@ -313,7 +334,9 @@ HALLS = [
         code='h1',
         label='Зал 1 (перспектива)',
         base='ai-base-room.png',
-        quad=[(906, 148), (1083, 168), (1083, 525), (906, 560)],
+        quad=[(906, 148), (1083, 168), (1083, 512), (906, 592)],
+        poly=[(906, 148), (1083, 168), (1083, 512), (1000, 522), (970, 585), (906, 592)],
+        chairs=[(984, 526), (1000, 522), (1030, 496), (1060, 499), (1083, 478)],
         PW=712, PH=1560, pitch=42,
         strip=(908, 920, 500, 552),
         profstrip=(911, 916), profrange=(160, 556),
@@ -322,7 +345,10 @@ HALLS = [
         code='h2',
         label='Зал 2 (фронтальный)',
         base='ai-base-room2.png',
-        quad=[(1387, 100), (1638, 94), (1638, 748), (1387, 812)],
+        quad=[(1387, 100), (1638, 94), (1638, 748), (1387, 800)],
+        poly=[(1387, 100), (1638, 94), (1638, 700), (1615, 720), (1560, 757),
+              (1500, 770), (1410, 772), (1387, 800)],
+        chairs=[(1440, 700), (1520, 704), (1580, 700), (1615, 668), (1638, 655)],
         PW=1004, PH=2760, pitch=75,
         strip=(1590, 1634, 700, 740),
         profstrip=(1393, 1400), profrange=(132, 806),
@@ -335,12 +361,13 @@ def build_hall(h):
     prof, py0, py1 = brightness_profile(os.path.join(ROOT, h['base']), h['profstrip'], h['profrange'])
     panel = synth_panel(h['PW'], h['PH'], h['pitch'], slat, gap, prof, (py0, py1))
     outs = []
+    keep = build_keep_mask(os.path.join(ROOT, h['base']), h['poly'], h['chairs'])
     for slug, label, fn in VARIANTS:
         b = PB(panel.copy())
         fn(b)
         comp = b.finish()
         img = base.copy()
-        warp_in(img, comp, h['quad'])
+        warp_in(img, comp, h['quad'], keep)
         out = os.path.join(OUTDIR, f"{h['code']}-{slug}.png")
         img.save(out, 'PNG')
         outs.append((out, label))

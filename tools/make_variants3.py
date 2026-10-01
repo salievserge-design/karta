@@ -6,7 +6,8 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image, ImageDraw, ImageOps, ImageFont
 from make_variants_legacy import (PB, prep, photos, warp_in, sample_panel, brightness_profile,
-                                  synth_panel, contact_sheet, HALLS, FONT, FONT_B)
+                                  synth_panel, contact_sheet, HALLS, FONT, FONT_B,
+                                  build_keep_mask)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTDIR = os.path.join(ROOT, 'variants')
@@ -153,13 +154,14 @@ def build_hall_s3(h):
     slat, gap = sample_panel(os.path.join(ROOT, h['base']), h['strip'])
     prof, py0, py1 = brightness_profile(os.path.join(ROOT, h['base']), h['profstrip'], h['profrange'])
     panel = synth_panel(h['PW'], h['PH'], h['pitch'], slat, gap, prof, (py0, py1))
+    keep = build_keep_mask(os.path.join(ROOT, h['base']), h['poly'], h['chairs'])
     outs = []
     for slug, label, fn in VARIANTS3:
         b = PB(panel.copy())
         fn(b)
         comp = b.finish()
         img = base.copy()
-        warp_in(img, comp, h['quad'])
+        warp_in(img, comp, h['quad'], keep)
         out = os.path.join(OUTDIR, f"{h['code']}-{slug}.png")
         img.save(out, 'PNG')
         outs.append((out, label))
