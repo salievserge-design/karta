@@ -215,6 +215,95 @@ class PB:
             d.line([(self.W // 2 - lw, ly), (self.W // 2 + lw, ly)],
                    fill=(255, 186, 112), width=max(2, int(self.W * 0.007)))
 
+
+    def vtitle(self, text, u_center, v_center, size_frac=0.05, angle=90, tracking=6):
+        """вертикальный заголовок на панели"""
+        f = ImageFont.truetype(FONT_B, int(self.W * size_frac))
+        tmp = Image.new('RGBA', (10, 10), (0, 0, 0, 0))
+        d0 = ImageDraw.Draw(tmp)
+        widths = [d0.textlength(ch, font=f) for ch in text]
+        total = int(sum(widths) + tracking * (len(text) - 1))
+        asc, desc = f.getmetrics()
+        txt = Image.new('RGBA', (total + 10, asc + desc + 10), (0, 0, 0, 0))
+        d = ImageDraw.Draw(txt)
+        x = 5
+        for ch, wch in zip(text, widths):
+            d.text((x, 5), ch, font=f, fill=(235, 238, 239))
+            x += wch + tracking
+        rot = txt.rotate(angle, expand=True, resample=Image.BICUBIC)
+        px = int(u_center * self.W - rot.width / 2)
+        py = int(v_center * self.H - rot.height / 2)
+        self.content.alpha_composite(rot, (px, py))
+
+    def hline(self, v, u0=0.06, u1=0.94, color=(176, 184, 190), w_px=None):
+        d = ImageDraw.Draw(self.content)
+        y = int(v * self.H)
+        w_px = w_px or max(3, int(self.W * 0.006))
+        d.line([(int(u0 * self.W), y), (int(u1 * self.W), y)], fill=color, width=w_px)
+
+    def tilt_fr(self, u_c, v_c, w_frac, aspect, photo_key, angle=0, pin=True,
+                style='black', mat_scale=0.85):
+        """рамка с наклоном (как приколотые принты)"""
+        w = int(w_frac * self.W); h = int(w / aspect)
+        if style == 'polaroid':
+            fpx, mpc, mside, mtop = max(2, w // 100), (244, 244, 242), int(w * 0.07), int(w * 0.06)
+            mbot = int(h * 0.16)
+        else:
+            fpx, mpc, mside, mtop = max(3, w // 80), (22, 22, 24), int(w * 0.09 * mat_scale), int(w * 0.08 * mat_scale)
+            mbot = int(h * 0.12 * mat_scale)
+        frame = Image.new('RGB', (w, h), mpc)
+        frame.paste(mat_texture(w - 2 * fpx, h - 2 * fpx), (fpx, fpx))
+        iw = w - 2 * (fpx + mside); ih = h - 2 * fpx - mtop - mbot
+        frame.paste(prep(photo_key, iw / ih, iw), (fpx + mside, fpx + mtop))
+        dd = ImageDraw.Draw(frame)
+        dd.rectangle([0, 0, w - 1, h - 1], outline=tuple(int(c * 0.65) for c in mpc), width=1)
+        dd.rectangle([max(0, fpx), max(0, fpx), w - fpx - 1, h - fpx - 1], outline=(203, 200, 194), width=1)
+        frgba = frame.convert('RGBA')
+        rot = frgba.rotate(angle, expand=True, resample=Image.BICUBIC)
+        pad = rot.width - w
+        sh = Image.new('RGBA', rot.size, (8, 20, 30, 120))
+        sh.putalpha(rot.split()[3].point(lambda a: int(a * 0.45)))
+        sblur = sh.filter(ImageFilter.GaussianBlur(8))
+        cx, cy = int(u_c * self.W), int(v_c * self.H)
+        ox = cx - rot.width // 2; oy = cy - rot.height // 2
+        self.shad_layer.alpha_composite(sblur, (ox + 6, oy + 8))
+        self.content.alpha_composite(rot, (ox, oy))
+        if pin:
+            d = ImageDraw.Draw(self.content)
+            r = max(3, w // 60)
+            d.ellipse([cx - r, oy + r * 2, cx + r, oy + r * 4], fill=(38, 40, 44), outline=(150, 150, 148))
+        return (cx, cy, rot.width, rot.height)
+
+    def film(self, u0, v0, w_frac, photo_keys, ratio=1.55):
+        """кадр-кинолента с перфорацией"""
+        w = int(w_frac * self.W)
+        bx = max(4, int(w * 0.030))
+        holes_h = max(10, int(w * 0.035))
+        gapf = int(w * 0.012)
+        cell_w = (w - 2 * bx - 2 * gapf) // 3
+        cell_h = int(cell_w / ratio)
+        h = holes_h * 2 + cell_h + bx * 4
+        x0, y0 = int(u0 * self.W), int(v0 * self.H)
+        frame = Image.new('RGB', (w, h), (18, 18, 20))
+        d = ImageDraw.Draw(frame)
+        # перфорация
+        hr_w = max(4, int(w * 0.012)); hr_h = int(holes_h * 0.55)
+        step = int(w / 16)
+        for i in range(16):
+            hx = int(i * step + step / 2 - hr_w / 2)
+            for yy in (int(bx * 1.2), h - int(bx * 1.2) - holes_h + int((holes_h - hr_h) / 2)):
+                d.rounded_rectangle([hx, yy, hx + hr_w, yy + hr_h], radius=2, fill=(96, 98, 100))
+        for i, key in enumerate(photo_keys):
+            px = bx + i * (cell_w + gapf)
+            py = h // 2 - cell_h // 2
+            frame.paste(prep(key, cell_w / cell_h, cell_w), (px, py))
+        d.rectangle([0, 0, w - 1, h - 1], outline=(60, 60, 62), width=1)
+        s = ImageDraw.Draw(self.shad_layer)
+        off = max(5, w // 60)
+        s.rectangle([x0 + off, y0 + off, x0 + w + off, y0 + h + off], fill=(8, 20, 30, 110))
+        self.content.paste(frame, (x0, y0))
+        return (x0, y0, w, h)
+
     def finish(self):
         gl = self.glow_layer.filter(ImageFilter.GaussianBlur(self.W // 18))
         sh = self.shad_layer.filter(ImageFilter.GaussianBlur(self.W // 50))
@@ -345,7 +434,7 @@ def build_hall(h):
         print('saved', out)
     return outs
 
-def contact_sheet(h, outs):
+def contact_sheet(h, outs, suite='В1–В10', fname_tag=''):
     thumbs = []
     tw = 620
     for path, label in outs:
@@ -353,12 +442,12 @@ def contact_sheet(h, outs):
         r = tw / im.width
         thumbs.append((im.resize((tw, int(im.height * r)), Image.LANCZOS), label))
     cell_w, cell_h = tw + 60, thumbs[0][0].height + 100
-    cols, rows = 2, 5
+    cols, rows = 2, max(1, (len(thumbs) + 1) // 2)
     sheet = Image.new('RGB', (cols * cell_w + 60, rows * cell_h + 130), (242, 243, 245))
     d = ImageDraw.Draw(sheet)
     f = ImageFont.truetype(FONT_B, 34)
     ft = ImageFont.truetype(FONT, 26)
-    title = f"ТРАНСПРОЕКТ · {h['label']} — 10 вариантов фотопанели"
+    title = f"ТРАНСПРОЕКТ · {h['label']} — варианты {suite}"
     d.text((40, 30), title, font=f, fill=(52, 62, 72))
     for i, (im, label) in enumerate(thumbs):
         c, r = i % cols, i // cols
@@ -366,11 +455,119 @@ def contact_sheet(h, outs):
         d.rectangle([x - 2, y - 2, x + im.width + 1, y + im.height + 1], outline=(198, 203, 208), width=2)
         sheet.paste(im, (x, y))
         d.text((x, y + im.height + 14), label, font=ft, fill=(70, 80, 90))
-    out = os.path.join(ROOT, f"Обзор вариантов — {h['label']}.png")
+    out = os.path.join(ROOT, f"Обзор вариантов {suite} — {h['label']}.png")
     sheet.save(out, 'PNG')
     print('saved', out)
 
+
+def v11_lenta(b):
+    b.title('МОСТЫ И РАЗВЯЗКИ', 0.045)
+    w = 0.82; fh = (w * b.W / 1.78) / b.H; gap = 0.035
+    v = (1.0 - (3 * fh + 2 * gap)) / 2 + 0.03
+    b.fr((1 - w) / 2, v, w, 1.78, 'day')
+    b.fr((1 - w) / 2, v + fh + gap, w, 1.78, 'rostov')
+    b.fr((1 - w) / 2, v + 2 * (fh + gap), w, 1.78, 'night')
+
+def v12_sutki(b):
+    b.title('ОДИН ДЕНЬ', 0.045)
+    cw = 0.40; ch = (cw * b.W) / b.H; v0 = 0.16; gap = 0.045
+    b.fr(0.07, v0, cw, 1.0, 'clover', style='polaroid', caption='Утро')
+    b.fr(1 - 0.07 - cw, v0, cw, 1.0, 'day', style='polaroid', caption='День')
+    v2 = v0 + ch + gap + 0.10
+    b.fr(0.07, v2, cw, 1.0, 'rostov', style='polaroid', caption='Закат')
+    b.fr(1 - 0.07 - cw, v2, cw, 1.0, 'night', style='polaroid', caption='Ночь')
+
+def v13_kaskad(b):
+    w = 0.335; xh = (w * b.W) / b.H
+    b.tilt_fr(0.24, 0.105 + xh / 2, w, 1.0, 'day', angle=-2.5)
+    b.tilt_fr(0.52, 0.105 + xh * 1.5 + 0.03, w, 1.0, 'rostov', angle=1.8)
+    b.tilt_fr(0.28, 0.105 + xh * 2.5 + 0.06, w, 1.0, 'night', angle=-1.5)
+    b.tilt_fr(0.56, 0.105 + xh * 3.5 + 0.09, w, 1.0, 'clover', angle=2.2)
+
+def v14_polka(b):
+    b.title('МОСТЫ И РАЗВЯЗКИ', 0.04)
+    hero_h = (0.60 * b.W / 0.75) / b.H
+    b.fr(0.20, 0.10, 0.60, 3 / 4, 'night')
+    rail_v = 0.10 + hero_h + 0.055
+    b.hline(rail_v, color=(150, 158, 164))
+    b.hline(rail_v - 0.003, color=(210, 214, 218), w_px=max(2, int(b.W * 0.004)))
+    sw = 0.27; sh = (sw * b.W / 1.0) / b.H
+    for i, key in enumerate(['day', 'clover', 'rostov']):
+        b.fr(0.06 + i * (sw + 0.055), rail_v - sh + 0.004, sw, 1.0, key, shadow=True)
+
+def v15_duet(b):
+    b.title('ДЕНЬ · НОЧЬ', 0.045)
+    fh = 0.62
+    ar = (0.44 * b.W) / (fh * b.H)
+    b.fr(0.05, 0.15, 0.44, ar, 'day', caption='ДЕНЬ')
+    b.fr(0.51, 0.15, 0.44, ar, 'night', caption='НОЧЬ')
+
+def v16_polosy(b):
+    ar = (0.42 * b.W) / (0.955 * b.H)
+    b.fr(0.05, 0.022, 0.42, ar, 'pylon', style='frameless')
+    b.fr(0.53, 0.022, 0.42, ar, 'night', style='frameless')
+
+def v17_tochka(b):
+    b.title('ИЗБРАННОЕ', 0.05)
+    w = 0.40; fh = (w * b.W) / b.H
+    b.fr(0.30, 0.13, w, 1.0, 'day', glow_alpha=80)
+    b.fr(0.30, 0.13 + fh + 0.09, w, 1.0, 'clover', glow_alpha=80)
+    b.fr(0.30, 0.13 + 2 * (fh + 0.09), w, 1.0, 'night', glow_alpha=80)
+
+def v18_vert(b):
+    b.vtitle('МОСТЫ И РАЗВЯЗКИ', 0.115, 0.5, size_frac=0.042, tracking=10)
+    fh = 0.34
+    ar = (0.62 * b.W) / (fh * b.H)
+    b.fr(0.26, 0.09, 0.62, ar, 'day', caption='ЧЕРНАВСКИЙ МОСТ')
+    b.fr(0.26, 0.55, 0.62, ar, 'clover', caption='КЛОВЕРНЫЙ ЛИСТ')
+
+def v19_prints(b):
+    w = 0.42
+    b.tilt_fr(0.27, 0.16, w, 1.0, 'day', angle=-3.2, style='polaroid')
+    b.tilt_fr(0.71, 0.20, w * 0.96, 1.0, 'rostov', angle=2.4, style='polaroid')
+    b.tilt_fr(0.28, 0.56, w * 0.96, 1.0, 'night', angle=2.8, style='polaroid')
+    b.tilt_fr(0.70, 0.60, w, 1.0, 'clover', angle=-2.0, style='polaroid')
+
+def v20_film(b):
+    b.title('КИНОЛЕНТА', 0.045)
+    fh = 0.165
+    b.film(0.03, 0.20, 0.94, ['day', 'rostov', 'night'])
+    b.film(0.03, 0.20 + fh + 0.16, 0.94, ['clover', 'pylon', 'night'])
+
+VARIANTS2 = [
+    ('11-лента',      'В11 «Лента» — горизонтальные ряды',   v11_lenta),
+    ('12-сутки',      'В12 «Сутки» — один день мостов',      v12_sutki),
+    ('13-каскад',     'В13 «Каскад» — диагональный ритм',    v13_kaskad),
+    ('14-полка',      'В14 «Полка» — герой на консоли',      v14_polka),
+    ('15-дуэт',       'В15 «Дуэт» — день и ночь 50/50',      v15_duet),
+    ('16-полосы',     'В16 «Полосы» — фото во всю высоту',   v16_polosy),
+    ('17-точка',      'В17 «Точка света» — квадраты с гало', v17_tochka),
+    ('18-вертикаль',  'В18 «Вертикаль» — типографика сбоку', v18_vert),
+    ('19-принты',     'В19 «Принты» — небрежная доска',      v19_prints),
+    ('20-кинолента',  'В20 «Кинолента» — плёнка кадров',     v20_film),
+]
+
+def build_hall_suite(h, suites):
+    base = Image.open(os.path.join(ROOT, h['base'])).convert('RGB')
+    slat, gap = sample_panel(os.path.join(ROOT, h['base']), h['strip'])
+    prof, py0, py1 = brightness_profile(os.path.join(ROOT, h['base']), h['profstrip'], h['profrange'])
+    panel = synth_panel(h['PW'], h['PH'], h['pitch'], slat, gap, prof, (py0, py1))
+    outs = []
+    for slug, label, fn in suites:
+        b = PB(panel.copy())
+        fn(b)
+        comp = b.finish()
+        img = base.copy()
+        warp_in(img, comp, h['quad'])
+        out = os.path.join(OUTDIR, f"{h['code']}-{slug}.png")
+        img.save(out, 'PNG')
+        outs.append((out, label))
+        print('saved', out)
+    return outs
+
 if __name__ == '__main__':
     for h in HALLS:
-        outs = build_hall(h)
-        contact_sheet(h, outs)
+        outs1 = build_hall_suite(h, VARIANTS)
+        contact_sheet(h, outs1, suite='В1–В10')
+        outs2 = build_hall_suite(h, VARIANTS2)
+        contact_sheet(h, outs2, suite='В11–В20')
