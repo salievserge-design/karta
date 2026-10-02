@@ -63,7 +63,17 @@ for y in range(H):
         V[y] = prof[640:660].mean(axis=0) * 0.96
 # нормировка, чтобы zone(x,550)=P(x)
 norm = V[550].copy()
+# тёплое пятно LED-подсветки панели: замер по краям зоны (без логотипа), поканально
+strip = [x - ZX0 for x in (150, 151, 152, 310, 311, 312)]
+baseline = (P[strip].mean(axis=0)[None, :] * (V / norm[None, :]))   # (H,3) на строках-y
+orig_on_strip = arr0[:, [ZX0 + k for k in strip], :].mean(axis=1)    # (H,3)
+sur3 = np.clip(orig_on_strip - baseline, 0, None)
+for ch in range(3):
+    sur3[:, ch] = np.convolve(sur3[:, ch], np.ones(17) / 17, mode='same')
+sur3 = sur3 * np.clip((430 - np.arange(H)) / 110.0, 0, 1)[:, None]
+gx = np.exp(-0.5 * ((np.arange(ZX0, ZX1) - 232.0) / 95.0) ** 2)
 zone = P[None, :, :] * (V[Y0:Y1] / norm[None, :])[:, None, :]
+zone = zone + sur3[Y0:Y1][:, None, :] * gx[None, :, None] * 0.9
 zone *= (1 + rng.normal(0, 0.009, size=zone.shape[:2])[..., None])
 zone = np.clip(zone, 0, 255).astype('uint8')
 mz = feathered_rect(W, H, [ZX0, Y0, ZX1, Y1], feather=6)
